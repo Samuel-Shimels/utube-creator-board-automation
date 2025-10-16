@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Content Manager</title>
+    <title>YouTube Content Manager Pro</title>
     
     <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,240 +12,978 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/ScrollTrigger.min.js"></script>
 
     <style>
-        /* Custom CSS Variables */
+        /* Modern CSS Variables with Dark Mode Support */
         :root {
-            --primary: #3b82f6;
-            --primary-dark: #2563eb;
-            --secondary: #64748b;
+            /* Primary Colors */
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --primary-50: #eef2ff;
+            --primary-100: #e0e7ff;
+            --primary-900: #312e81;
+            
+            /* Semantic Colors */
             --success: #10b981;
+            --success-light: #34d399;
             --warning: #f59e0b;
+            --warning-light: #fbbf24;
             --danger: #ef4444;
+            --danger-light: #f87171;
             --info: #06b6d4;
-            --light: #f8fafc;
-            --dark: #1e293b;
-            --border: #e2e8f0;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --info-light: #22d3ee;
+            
+            /* Neutral Colors */
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            
+            /* Background Colors */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-sidebar: #ffffff;
+            
+            /* Text Colors */
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --text-inverse: #ffffff;
+            
+            /* Border Colors */
+            --border-light: #e5e7eb;
+            --border-medium: #d1d5db;
+            --border-dark: #9ca3af;
+            
+            /* Shadow System */
+            --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            
+            /* Spacing System */
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.25rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            --space-10: 2.5rem;
+            --space-12: 3rem;
+            --space-16: 4rem;
+            --space-20: 5rem;
+            
+            /* Border Radius */
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+            
+            /* Transitions */
+            --transition-fast: 150ms ease-in-out;
+            --transition-normal: 250ms ease-in-out;
+            --transition-slow: 350ms ease-in-out;
+            
+            /* Z-Index Scale */
+            --z-dropdown: 1000;
+            --z-sticky: 1020;
+            --z-fixed: 1030;
+            --z-modal-backdrop: 1040;
+            --z-modal: 1050;
+            --z-popover: 1060;
+            --z-tooltip: 1070;
+            --z-toast: 1080;
         }
 
-        /* Loading Screen */
+        /* Dark Mode Variables */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-card: #1e293b;
+            --bg-sidebar: #0f172a;
+            
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            
+            --border-light: #334155;
+            --border-medium: #475569;
+            --border-dark: #64748b;
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-color var(--transition-normal), color var(--transition-normal);
+        }
+
+        /* Loading Screen with Modern Animation */
         .loading-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
+            z-index: var(--z-toast);
+            transition: all var(--transition-slow);
+            backdrop-filter: blur(10px);
         }
 
         .loading-screen.hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .loading-logo {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: var(--space-6);
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
+            width: 80px;
+            height: 80px;
+            position: relative;
+            margin: 0 auto var(--space-6);
+        }
+
+        .loading-spinner::before,
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: pulse 2s ease-in-out infinite;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .loading-spinner::before {
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            animation-delay: 0s;
         }
 
-        /* Kanban Board Styles */
-        .kanban-board {
+        .loading-spinner::after {
+            width: 60%;
+            height: 60%;
+            top: 20%;
+            left: 20%;
+            background: rgba(255, 255, 255, 0.3);
+            animation-delay: 0.5s;
+        }
+
+        .loading-text {
+            font-size: 1.125rem;
+            font-weight: 500;
+            opacity: 0.9;
+            animation: fadeIn 1s ease-out 0.5s both;
+        }
+
+        /* Modern Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 53%, 80%, 100% {
+                transform: translate3d(0, 0, 0);
+            }
+            40%, 43% {
+                transform: translate3d(0, -8px, 0);
+            }
+            70% {
+                transform: translate3d(0, -4px, 0);
+            }
+            90% {
+                transform: translate3d(0, -2px, 0);
+            }
+        }
+
+        /* Modern Header */
+        .app-header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: var(--z-sticky);
+            backdrop-filter: blur(10px);
+            transition: all var(--transition-normal);
+        }
+
+        .app-header.scrolled {
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-content {
             display: flex;
-            gap: 1rem;
-            overflow-x: auto;
-            padding: 1rem 0;
-            min-height: 500px;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-4) var(--space-6);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all var(--transition-fast);
+        }
+
+        .app-logo:hover {
+            transform: scale(1.05);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        /* Modern Button System */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            font-size: 0.875rem;
+            line-height: 1.25;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-dark);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), var(--success-light));
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), var(--warning-light));
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), var(--danger-light));
+            color: white;
+        }
+
+        .btn-sm {
+            padding: var(--space-1) var(--space-3);
+            font-size: 0.75rem;
+        }
+
+        .btn-lg {
+            padding: var(--space-3) var(--space-6);
+            font-size: 1rem;
+        }
+
+        /* Modern Kanban Board */
+        .kanban-container {
+            padding: var(--space-6);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--space-6);
+            padding: var(--space-4) 0;
         }
 
         .phase-column {
-            flex: 0 0 300px;
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            min-height: 500px;
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            min-height: 600px;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phase-column::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        }
+
+        .phase-column:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
         }
 
         .phase-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid var(--border);
+            margin-bottom: var(--space-6);
+            padding-bottom: var(--space-4);
+            border-bottom: 2px solid var(--border-light);
         }
 
         .phase-title {
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--dark);
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .phase-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
         }
 
         .phase-count {
-            background: var(--primary);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
+            background: var(--primary-100);
+            color: var(--primary-900);
+            padding: var(--space-1) var(--space-3);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .phase-content {
+            min-height: 400px;
         }
 
         .task-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
             cursor: grab;
-            box-shadow: var(--shadow);
-            transition: all 0.2s ease;
+            box-shadow: var(--shadow-xs);
+            transition: all var(--transition-normal);
             position: relative;
+            overflow: hidden;
+        }
+
+        .task-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--border-light);
+            transition: all var(--transition-fast);
         }
 
         .task-card:hover {
-            box-shadow: var(--shadow-lg);
+            box-shadow: var(--shadow-md);
             transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        .task-card:hover::before {
+            background: var(--primary);
         }
 
         .task-card:active {
             cursor: grabbing;
+            transform: rotate(2deg);
         }
 
-        .task-card.overdue {
-            border-left: 4px solid var(--danger);
+        .task-card.overdue::before {
+            background: var(--danger);
         }
 
-        .task-card.due-soon {
-            border-left: 4px solid var(--warning);
+        .task-card.due-soon::before {
+            background: var(--warning);
+        }
+
+        .task-card.published::before {
+            background: var(--success);
         }
 
         .task-title {
             font-weight: 600;
-            color: var(--dark);
-            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
             line-height: 1.4;
+            font-size: 0.95rem;
         }
 
         .task-pillar {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
             font-size: 0.75rem;
             font-weight: 500;
-            margin-bottom: 0.5rem;
+            margin-bottom: var(--space-3);
         }
 
         .task-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.875rem;
-            color: var(--secondary);
-            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: var(--space-3);
         }
 
         .task-assignee {
             display: flex;
             align-items: center;
-            gap: 0.25rem;
+            gap: var(--space-1);
         }
 
         .task-due-date {
             font-size: 0.75rem;
+            font-weight: 500;
         }
 
         .task-due-date.overdue {
             color: var(--danger);
-            font-weight: 600;
         }
 
         .task-due-date.due-soon {
             color: var(--warning);
-            font-weight: 600;
         }
 
-        /* Dashboard Cards */
+        .task-actions {
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .task-card:hover .task-actions {
+            opacity: 1;
+        }
+
+        .task-action-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .task-action-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Modern Dashboard */
+        .dashboard-container {
+            padding: var(--space-6);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-8);
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: var(--space-3);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-6);
+            margin-bottom: var(--space-8);
+        }
+
         .metric-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            transition: all 0.2s ease;
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
         }
 
         .metric-card:hover {
             box-shadow: var(--shadow-lg);
-            transform: translateY(-2px);
+            transform: translateY(-4px);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-4);
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        .metric-trend.positive {
+            background: var(--success);
+            color: white;
+        }
+
+        .metric-trend.negative {
+            background: var(--danger);
+            color: white;
+        }
+
+        .metric-trend.neutral {
+            background: var(--gray-100);
+            color: var(--gray-600);
         }
 
         .metric-value {
             font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--primary);
+            font-weight: 800;
+            color: var(--text-primary);
             line-height: 1;
+            margin-bottom: var(--space-2);
         }
 
         .metric-label {
-            color: var(--secondary);
+            color: var(--text-secondary);
             font-size: 0.875rem;
             font-weight: 500;
-            margin-top: 0.5rem;
+            margin-bottom: var(--space-1);
         }
 
-        .metric-change {
+        .metric-description {
+            color: var(--text-muted);
             font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        /* Modern Filters */
+        .filters-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            margin-bottom: var(--space-8);
+        }
+
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .filters-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
             font-weight: 500;
-            margin-top: 0.25rem;
+            color: var(--text-primary);
         }
 
-        .metric-change.positive {
-            color: var(--success);
+        .filter-input {
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            transition: all var(--transition-fast);
+            background: var(--bg-primary);
         }
 
-        .metric-change.negative {
-            color: var(--danger);
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-100);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: var(--space-2);
+            margin-top: var(--space-4);
         }
 
         /* Pillar Colors */
-        .pillar-educational { background: #dbeafe; color: #1e40af; }
-        .pillar-product { background: #e0e7ff; color: #3730a3; }
-        .pillar-success { background: #d1fae5; color: #065f46; }
-        .pillar-support { background: #fef3c7; color: #92400e; }
-        .pillar-marketing { background: #fee2e2; color: #991b1b; }
+        .pillar-educational { 
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe); 
+            color: #1e40af; 
+            border: 1px solid #93c5fd;
+        }
+        .pillar-product { 
+            background: linear-gradient(135deg, #e0e7ff, #c7d2fe); 
+            color: #3730a3; 
+            border: 1px solid #a5b4fc;
+        }
+        .pillar-success { 
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0); 
+            color: #065f46; 
+            border: 1px solid #6ee7b7;
+        }
+        .pillar-support { 
+            background: linear-gradient(135deg, #fef3c7, #fde68a); 
+            color: #92400e; 
+            border: 1px solid #fbbf24;
+        }
+        .pillar-marketing { 
+            background: linear-gradient(135deg, #fee2e2, #fecaca); 
+            color: #991b1b; 
+            border: 1px solid #f87171;
+        }
+
+        /* Modern Modals */
+        .modal-content {
+            border: none;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-2xl);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: var(--space-6);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .modal-body {
+            padding: var(--space-6);
+        }
+
+        .modal-footer {
+            background: var(--bg-tertiary);
+            border: none;
+            padding: var(--space-6);
+        }
+
+        /* Toast Notifications */
+        .toast {
+            border: none;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .toast-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .toast-body {
+            background: var(--bg-primary);
+        }
+
+        /* Loading States */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
 
         /* Responsive Design */
+        @media (max-width: 1024px) {
+            .kanban-board {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: var(--space-4);
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: var(--space-4);
+            }
+        }
+
         @media (max-width: 768px) {
             .kanban-board {
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
             
             .phase-column {
-                flex: 1;
-                min-width: 100%;
+                min-height: 400px;
             }
             
-            .metric-card {
-                margin-bottom: 1rem;
+            .header-content {
+                padding: var(--space-3) var(--space-4);
+            }
+            
+            .dashboard-container,
+            .kanban-container {
+                padding: var(--space-4);
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-4);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .app-logo {
+                font-size: 1.25rem;
+            }
+            
+            .logo-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+            }
+            
+            .phase-column {
+                padding: var(--space-4);
             }
         }
 
@@ -256,173 +994,306 @@
         }
 
         ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 4px;
+            background: var(--gray-100);
+            border-radius: var(--radius-sm);
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+            background: var(--gray-300);
+            border-radius: var(--radius-sm);
+            transition: background var(--transition-fast);
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+            background: var(--gray-400);
+        }
+
+        /* Dark Mode Scrollbar */
+        [data-theme="dark"] ::-webkit-scrollbar-track {
+            background: var(--gray-800);
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb {
+            background: var(--gray-600);
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
         }
 
         /* Animation Classes */
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.6s ease-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
         }
 
-        .slide-in {
-            animation: slideIn 0.3s ease-out;
+        .slide-in-right {
+            animation: slideInRight 0.4s ease-out;
         }
 
-        @keyframes slideIn {
-            from { transform: translateX(-20px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+        .slide-in-left {
+            animation: slideInLeft 0.4s ease-out;
+        }
+
+        .scale-in {
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .bounce-in {
+            animation: bounce 0.6s ease-out;
+        }
+
+        /* Utility Classes */
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .shadow-glow {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .hover-lift {
+            transition: transform var(--transition-normal);
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-4px);
+        }
+
+        /* Focus States */
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--primary-100);
+        }
+
+        /* Selection */
+        ::selection {
+            background: var(--primary-100);
+            color: var(--primary-900);
+        }
+
+        /* Print Styles */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            .kanban-board {
+                display: block;
+            }
+            
+            .phase-column {
+                break-inside: avoid;
+                margin-bottom: var(--space-4);
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50">
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
-        <div class="text-white text-center">
-            <h1 class="text-4xl font-bold mb-4">YouTube Content Manager</h1>
-            <div class="loading-spinner mb-4"></div>
-            <p class="text-lg">Loading your content dashboard...</p>
+        <div class="loading-content">
+            <h1 class="loading-logo">YouTube Content Manager Pro</h1>
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading your content dashboard...</p>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div id="mainContent" class="container-fluid" style="display: none;">
-        <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200 mb-6">
-            <div class="container-fluid px-4 py-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <h1 class="text-2xl font-bold text-gray-900">
-                            <i class="bi bi-youtube text-red-500 mr-2"></i>
-                            YouTube Content Manager
-                        </h1>
+    <div id="mainContent" style="display: none;">
+        <!-- Modern Header -->
+        <header class="app-header" id="appHeader">
+            <div class="header-content">
+                <a href="#" class="app-logo">
+                    <div class="logo-icon">
+                        <i class="bi bi-youtube"></i>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-arrow-clockwise mr-1"></i>
-                            Refresh
+                    <span>YouTube Content Manager Pro</span>
+                </a>
+                
+                <div class="header-actions">
+                    <button id="themeToggle" class="btn btn-secondary btn-sm" title="Toggle theme">
+                        <i class="bi bi-moon"></i>
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh data">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span class="d-none d-md-inline">Refresh</span>
+                    </button>
+                    <button id="addContentBtn" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-md-inline">Add Content</span>
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Settings">
+                            <i class="bi bi-gear"></i>
+                            <span class="d-none d-md-inline">Settings</span>
                         </button>
-                        <button id="addContentBtn" class="btn btn-primary btn-sm">
-                            <i class="bi bi-plus-circle mr-1"></i>
-                            Add Content
-                        </button>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="bi bi-gear mr-1"></i>
-                                Settings
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#" onclick="exportData()">
-                                    <i class="bi bi-download mr-2"></i>Export Data
-                                </a></li>
-                                <li><a class="dropdown-item" href="#" onclick="clearCache()">
-                                    <i class="bi bi-trash mr-2"></i>Clear Cache
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" onclick="initSheets()">
-                                    <i class="bi bi-database mr-2"></i>Initialize Sheets
-                                </a></li>
-                            </ul>
-                        </div>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">Data Management</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportData()">
+                                <i class="bi bi-download me-2"></i>Export Data
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="importData()">
+                                <i class="bi bi-upload me-2"></i>Import Data
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="clearCache()">
+                                <i class="bi bi-trash me-2"></i>Clear Cache
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">System</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="initSheets()">
+                                <i class="bi bi-database me-2"></i>Initialize Sheets
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showSystemInfo()">
+                                <i class="bi bi-info-circle me-2"></i>System Info
+                            </a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </header>
 
         <!-- Dashboard Section -->
-        <section class="mb-8">
-            <div class="container-fluid px-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">
-                    <i class="bi bi-graph-up mr-2"></i>
+        <section class="dashboard-container">
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">
+                    <i class="bi bi-graph-up"></i>
                     Dashboard Overview
                 </h2>
-                <div id="dashboardCards" class="row g-4">
-                    <!-- Dashboard cards will be populated here -->
+                <div class="dashboard-actions">
+                    <button id="viewToggle" class="btn btn-secondary btn-sm" title="Toggle view">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        <span class="d-none d-md-inline">Grid View</span>
+                    </button>
+                    <button id="refreshDashboard" class="btn btn-secondary btn-sm" title="Refresh dashboard">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
                 </div>
+            </div>
+            <div id="dashboardCards" class="metrics-grid">
+                <!-- Dashboard cards will be populated here -->
             </div>
         </section>
 
-        <!-- Filters Section -->
-        <section class="mb-6">
-            <div class="container-fluid px-4">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Filter by Pillar</label>
-                            <select id="pillarFilter" class="form-select">
-                                <option value="">All Pillars</option>
-                                <option value="Educational Tutorials">Educational Tutorials</option>
-                                <option value="Product Demos">Product Demos</option>
-                                <option value="Customer Success Stories">Customer Success Stories</option>
-                                <option value="Support Library">Support Library</option>
-                                <option value="Marketing & Updates">Marketing & Updates</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Filter by Phase</label>
-                            <select id="phaseFilter" class="form-select">
-                                <option value="">All Phases</option>
-                                <option value="Idea">Idea</option>
-                                <option value="Script">Script</option>
-                                <option value="Recording">Recording</option>
-                                <option value="Editing">Editing</option>
-                                <option value="Review">Review</option>
-                                <option value="Published">Published</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Search Title</label>
-                            <input type="text" id="titleSearch" class="form-control" placeholder="Search content titles...">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-flex gap-2">
-                                <button id="applyFilters" class="btn btn-primary">
-                                    <i class="bi bi-funnel mr-1"></i>Apply
-                                </button>
-                                <button id="clearFilters" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-circle mr-1"></i>Clear
-                                </button>
-                            </div>
+        <!-- Advanced Filters Section -->
+        <section class="filters-container">
+            <div class="filters-header">
+                <h3 class="filters-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Advanced Filters
+                </h3>
+                <button id="toggleFilters" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-chevron-down"></i>
+                    <span class="d-none d-md-inline">Collapse</span>
+                </button>
+            </div>
+            <div id="filtersContent" class="filters-content">
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label class="filter-label">Content Pillar</label>
+                        <select id="pillarFilter" class="filter-input">
+                            <option value="">All Pillars</option>
+                            <option value="Educational Tutorials">Educational Tutorials</option>
+                            <option value="Product Demos">Product Demos</option>
+                            <option value="Customer Success Stories">Customer Success Stories</option>
+                            <option value="Support Library">Support Library</option>
+                            <option value="Marketing & Updates">Marketing & Updates</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Workflow Phase</label>
+                        <select id="phaseFilter" class="filter-input">
+                            <option value="">All Phases</option>
+                            <option value="Idea">Idea</option>
+                            <option value="Script">Script</option>
+                            <option value="Recording">Recording</option>
+                            <option value="Editing">Editing</option>
+                            <option value="Review">Review</option>
+                            <option value="Published">Published</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Assigned To</label>
+                        <input type="email" id="assigneeFilter" class="filter-input" placeholder="user@example.com">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Search Title</label>
+                        <input type="text" id="titleSearch" class="filter-input" placeholder="Search content titles...">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Date Range</label>
+                        <div class="d-flex gap-2">
+                            <input type="date" id="dateFrom" class="filter-input">
+                            <input type="date" id="dateTo" class="filter-input">
                         </div>
                     </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Status</label>
+                        <select id="statusFilter" class="filter-input">
+                            <option value="">All Status</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="due-soon">Due Soon</option>
+                            <option value="on-track">On Track</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="applyFilters" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i>Apply Filters
+                    </button>
+                    <button id="clearFilters" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear All
+                    </button>
+                    <button id="saveFilters" class="btn btn-secondary">
+                        <i class="bi bi-bookmark me-1"></i>Save Preset
+                    </button>
                 </div>
             </div>
         </section>
 
         <!-- Kanban Board Section -->
-        <section>
-            <div class="container-fluid px-4">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-semibold text-gray-900">
-                        <i class="bi bi-kanban mr-2"></i>
-                        Content Creation Workflow
-                    </h2>
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm text-gray-600">Drag and drop to move content between phases</span>
-                        <button id="toggleView" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-list-ul mr-1"></i>
-                            List View
+        <section class="kanban-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="dashboard-title">
+                    <i class="bi bi-kanban"></i>
+                    Content Creation Workflow
+                </h2>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Drag and drop to move content between phases
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button id="kanbanView" class="btn btn-secondary btn-sm active">
+                            <i class="bi bi-kanban"></i>
+                            <span class="d-none d-md-inline">Kanban</span>
+                        </button>
+                        <button id="listView" class="btn btn-secondary btn-sm">
+                            <i class="bi bi-list-ul"></i>
+                            <span class="d-none d-md-inline">List</span>
+                        </button>
+                        <button id="calendarView" class="btn btn-secondary btn-sm">
+                            <i class="bi bi-calendar3"></i>
+                            <span class="d-none d-md-inline">Calendar</span>
                         </button>
                     </div>
                 </div>
-                <div id="kanbanBoard" class="kanban-board">
-                    <!-- Kanban columns will be populated here -->
-                </div>
+            </div>
+            <div id="kanbanBoard" class="kanban-board">
+                <!-- Kanban columns will be populated here -->
             </div>
         </section>
     </div>
@@ -529,39 +1400,288 @@
     </div>
 
     <script>
-        // Global variables
-        let contentData = [];
-        let filteredData = [];
-        let currentFilters = {};
-        let isListView = false;
+        // Enhanced Global State Management
+        const AppState = {
+            contentData: [],
+            filteredData: [],
+            currentFilters: {},
+            currentView: 'kanban',
+            theme: 'light',
+            isLoading: false,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+            selectedItems: new Set(),
+            viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight
+            }
+        };
+
+        // Enhanced Utility Functions
+        const Utils = {
+            // Debounce function for performance
+            debounce: (func, wait) => {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            },
+
+            // Throttle function for scroll events
+            throttle: (func, limit) => {
+                let inThrottle;
+                return function() {
+                    const args = arguments;
+                    const context = this;
+                    if (!inThrottle) {
+                        func.apply(context, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                };
+            },
+
+            // Format date with relative time
+            formatDate: (date) => {
+                if (!date) return 'Not set';
+                const now = new Date();
+                const diff = now - new Date(date);
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                
+                if (days === 0) return 'Today';
+                if (days === 1) return 'Yesterday';
+                if (days < 7) return `${days} days ago`;
+                if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+                return new Date(date).toLocaleDateString();
+            },
+
+            // Generate unique ID
+            generateId: () => 'content_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+
+            // Deep clone object
+            deepClone: (obj) => JSON.parse(JSON.stringify(obj)),
+
+            // Validate email
+            isValidEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+
+            // Get pillar color class
+            getPillarClass: (pillar) => {
+                const classes = {
+                    'Educational Tutorials': 'pillar-educational',
+                    'Product Demos': 'pillar-product',
+                    'Customer Success Stories': 'pillar-success',
+                    'Support Library': 'pillar-support',
+                    'Marketing & Updates': 'pillar-marketing'
+                };
+                return classes[pillar] || 'pillar-educational';
+            },
+
+            // Animate element
+            animate: (element, animation, duration = 300) => {
+                element.style.animation = `${animation} ${duration}ms ease-out`;
+                return new Promise(resolve => {
+                    setTimeout(resolve, duration);
+                });
+            }
+        };
+
+        // Enhanced Animation Controller
+        const Animations = {
+            init: () => {
+                // Initialize GSAP
+                gsap.registerPlugin(ScrollTrigger);
+                
+                // Set up scroll animations
+                gsap.utils.toArray('.metric-card').forEach((card, index) => {
+                    gsap.fromTo(card, 
+                        { opacity: 0, y: 50 },
+                        { 
+                            opacity: 1, 
+                            y: 0, 
+                            duration: 0.6, 
+                            delay: index * 0.1,
+                            ease: "power2.out"
+                        }
+                    );
+                });
+            },
+
+            fadeIn: (element, delay = 0) => {
+                gsap.fromTo(element, 
+                    { opacity: 0, y: 20 },
+                    { opacity: 1, y: 0, duration: 0.5, delay, ease: "power2.out" }
+                );
+            },
+
+            slideIn: (element, direction = 'right', delay = 0) => {
+                const x = direction === 'right' ? 50 : direction === 'left' ? -50 : 0;
+                const y = direction === 'up' ? -50 : direction === 'down' ? 50 : 0;
+                
+                gsap.fromTo(element, 
+                    { opacity: 0, x, y },
+                    { opacity: 1, x: 0, y: 0, duration: 0.5, delay, ease: "power2.out" }
+                );
+            },
+
+            bounce: (element) => {
+                gsap.fromTo(element, 
+                    { scale: 0.8 },
+                    { scale: 1, duration: 0.5, ease: "back.out(1.7)" }
+                );
+            }
+        };
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
         });
 
-        // Initialize application
+        // Enhanced Application Initialization
         async function initializeApp() {
             try {
+                AppState.isLoading = true;
                 showLoading(true);
+                
+                // Initialize theme
+                initializeTheme();
+                
+                // Initialize animations
+                Animations.init();
                 
                 // Initialize sheets if needed
                 await initSheets();
                 
-                // Load initial data
-                await loadDashboardData();
-                await loadKanbanData();
+                // Load initial data with progress indication
+                await Promise.all([
+                    loadDashboardData(),
+                    loadKanbanData(),
+                    loadUserPreferences()
+                ]);
                 
                 // Set up event listeners
                 setupEventListeners();
                 
+                // Initialize viewport tracking
+                initializeViewportTracking();
+                
+                // Initialize keyboard shortcuts
+                initializeKeyboardShortcuts();
+                
+                AppState.isLoading = false;
                 showLoading(false);
-                showToast('Application loaded successfully!', 'success');
+                
+                // Show welcome message
+                showToast('Welcome to YouTube Content Manager Pro!', 'success');
+                
+                // Initialize animations for loaded content
+                setTimeout(() => {
+                    Animations.fadeIn(document.querySelector('.dashboard-container'), 0.2);
+                    Animations.fadeIn(document.querySelector('.filters-container'), 0.4);
+                    Animations.fadeIn(document.querySelector('.kanban-container'), 0.6);
+                }, 100);
                 
             } catch (error) {
                 console.error('Error initializing app:', error);
                 showToast('Error loading application: ' + error.message, 'error');
+                AppState.isLoading = false;
                 showLoading(false);
+            }
+        }
+
+        // Theme Management
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('ytcm-theme') || 'light';
+            setTheme(savedTheme);
+        }
+
+        function setTheme(theme) {
+            AppState.theme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('ytcm-theme', theme);
+            
+            const themeIcon = document.querySelector('#themeToggle i');
+            if (themeIcon) {
+                themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const newTheme = AppState.theme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            showToast(`Switched to ${newTheme} theme`, 'info');
+        }
+
+        // Viewport Tracking
+        function initializeViewportTracking() {
+            const updateViewport = Utils.throttle(() => {
+                AppState.viewport.width = window.innerWidth;
+                AppState.viewport.height = window.innerHeight;
+                
+                // Update responsive classes
+                document.body.classList.toggle('mobile', AppState.viewport.width < 768);
+                document.body.classList.toggle('tablet', AppState.viewport.width >= 768 && AppState.viewport.width < 1024);
+                document.body.classList.toggle('desktop', AppState.viewport.width >= 1024);
+            }, 100);
+
+            window.addEventListener('resize', updateViewport);
+            updateViewport(); // Initial call
+        }
+
+        // Keyboard Shortcuts
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K for search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('titleSearch').focus();
+                }
+                
+                // Ctrl/Cmd + N for new content
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    showContentModal();
+                }
+                
+                // Escape to close modals
+                if (e.key === 'Escape') {
+                    const openModal = document.querySelector('.modal.show');
+                    if (openModal) {
+                        bootstrap.Modal.getInstance(openModal).hide();
+                    }
+                }
+                
+                // Ctrl/Cmd + R for refresh
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    refreshData();
+                }
+            });
+        }
+
+        // User Preferences
+        async function loadUserPreferences() {
+            try {
+                const preferences = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .getSystemConfig();
+                });
+
+                if (preferences.success) {
+                    // Apply user preferences
+                    const config = preferences.data;
+                    if (config.DefaultAssignee) {
+                        document.getElementById('contentAssignee').value = config.DefaultAssignee;
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not load user preferences:', error);
             }
         }
 
