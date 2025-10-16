@@ -1726,8 +1726,8 @@
                         .getContentAssets();
                 });
 
-                contentData = assets;
-                filteredData = [...contentData];
+                AppState.contentData = assets;
+                AppState.filteredData = [...AppState.contentData];
                 renderKanbanBoard();
             } catch (error) {
                 console.error('Error loading Kanban data:', error);
@@ -1810,7 +1810,7 @@
             const phases = ['Idea', 'Script', 'Recording', 'Editing', 'Review', 'Published'];
             
             container.innerHTML = phases.map(phase => {
-                const phaseContent = filteredData.filter(item => item.workflowPhase === phase);
+                const phaseContent = AppState.filteredData.filter(item => item.workflowPhase === phase);
                 const phaseColors = {
                     'Idea': 'secondary',
                     'Script': 'primary',
@@ -1839,7 +1839,7 @@
 
         // Create task card
         function createTaskCard(item) {
-            const pillarClass = getPillarClass(item.pillar);
+            const pillarClass = Utils.getPillarClass(item.pillar);
             const dueDate = item.dueDate ? new Date(item.dueDate) : null;
             const isOverdue = dueDate && dueDate < new Date();
             const isDueSoon = dueDate && dueDate <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -1866,17 +1866,8 @@
             `;
         }
 
-        // Get pillar CSS class
-        function getPillarClass(pillar) {
-            const classes = {
-                'Educational Tutorials': 'pillar-educational',
-                'Product Demos': 'pillar-product',
-                'Customer Success Stories': 'pillar-success',
-                'Support Library': 'pillar-support',
-                'Marketing & Updates': 'pillar-marketing'
-            };
-            return classes[pillar] || 'pillar-educational';
-        }
+        // Get pillar CSS class (moved to Utils object)
+        // This function is now part of Utils.getPillarClass()
 
         // Initialize sortable for drag and drop
         function initializeSortable() {
@@ -1914,7 +1905,7 @@
 
                 if (result.success) {
                     // Update local data
-                    const item = contentData.find(item => item.id === contentId);
+                    const item = AppState.contentData.find(item => item.id === contentId);
                     if (item) {
                         item.workflowPhase = newPhase;
                         item.updatedAt = new Date().toISOString();
@@ -1956,7 +1947,10 @@
             document.getElementById('clearFilters').addEventListener('click', clearFilters);
 
             // Toggle view button
-            document.getElementById('toggleView').addEventListener('click', toggleView);
+            document.getElementById('viewToggle').addEventListener('click', toggleView);
+
+            // Theme toggle button
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
             // Task card clicks
             document.addEventListener('click', (e) => {
@@ -1976,7 +1970,7 @@
             
             if (contentId) {
                 // Edit mode
-                const item = contentData.find(item => item.id === contentId);
+                const item = AppState.contentData.find(item => item.id === contentId);
                 if (item) {
                     title.textContent = 'Edit Content';
                     populateForm(item);
@@ -2046,7 +2040,7 @@
         // Show content details
         async function showContentDetails(contentId) {
             try {
-                const item = contentData.find(item => item.id === contentId);
+                const item = AppState.contentData.find(item => item.id === contentId);
                 if (!item) {
                     showToast('Content not found', 'error');
                     return;
@@ -2061,7 +2055,7 @@
                         </div>
                         <div class="col-md-6">
                             <strong>Pillar:</strong><br>
-                            <span class="task-pillar ${getPillarClass(item.pillar)}">${item.pillar || 'No Pillar'}</span>
+                            <span class="task-pillar ${Utils.getPillarClass(item.pillar)}">${item.pillar || 'No Pillar'}</span>
                         </div>
                         <div class="col-md-6">
                             <strong>Phase:</strong><br>
@@ -2118,9 +2112,9 @@
             const phase = document.getElementById('phaseFilter').value;
             const title = document.getElementById('titleSearch').value.toLowerCase();
 
-            currentFilters = { pillar, phase, title };
+            AppState.currentFilters = { pillar, phase, title };
 
-            filteredData = contentData.filter(item => {
+            AppState.filteredData = AppState.contentData.filter(item => {
                 const matchesPillar = !pillar || item.pillar === pillar;
                 const matchesPhase = !phase || item.workflowPhase === phase;
                 const matchesTitle = !title || (item.title && item.title.toLowerCase().includes(title));
@@ -2129,7 +2123,7 @@
             });
 
             renderKanbanBoard();
-            showToast(`Filtered to ${filteredData.length} items`, 'info');
+            showToast(`Filtered to ${AppState.filteredData.length} items`, 'info');
         }
 
         // Clear filters
@@ -2138,18 +2132,18 @@
             document.getElementById('phaseFilter').value = '';
             document.getElementById('titleSearch').value = '';
             
-            currentFilters = {};
-            filteredData = [...contentData];
+            AppState.currentFilters = {};
+            AppState.filteredData = [...AppState.contentData];
             renderKanbanBoard();
             showToast('Filters cleared', 'info');
         }
 
         // Toggle view
         function toggleView() {
-            isListView = !isListView;
+            AppState.currentView = AppState.currentView === 'kanban' ? 'list' : 'kanban';
             const button = document.getElementById('toggleView');
             
-            if (isListView) {
+            if (AppState.currentView === 'list') {
                 button.innerHTML = '<i class="bi bi-kanban mr-1"></i>Kanban View';
                 // TODO: Implement list view
                 showToast('List view not yet implemented', 'info');
@@ -2250,6 +2244,37 @@
             
             const bsToast = new bootstrap.Toast(toast);
             bsToast.show();
+        }
+
+        // Refresh data
+        async function refreshData() {
+            try {
+                AppState.isLoading = true;
+                showLoading(true);
+                
+                await Promise.all([
+                    loadDashboardData(),
+                    loadKanbanData()
+                ]);
+                
+                showToast('Data refreshed successfully', 'success');
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showToast('Error refreshing data', 'error');
+            } finally {
+                AppState.isLoading = false;
+                showLoading(false);
+            }
+        }
+
+        // Import data (placeholder)
+        function importData() {
+            showToast('Import functionality not yet implemented', 'info');
+        }
+
+        // Show system info
+        function showSystemInfo() {
+            showToast('System info functionality not yet implemented', 'info');
         }
     </script>
 </body>

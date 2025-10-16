@@ -24,6 +24,497 @@ function include(filename) {
 }
 
 /**
+ * Initialize YouTube Content Manager sheets
+ * @returns {object} Initialization result
+ */
+function initYtSheets() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    const specs = [
+      {
+        name: 'ContentAssets',
+        headers: [
+          'ID', 'Title', 'Pillar', 'WorkflowPhase', 'AssignedTo', 'DueDate',
+          'Assets', 'Notes', 'PublishedURL', 'CreatedAt', 'UpdatedAt'
+        ],
+        description: 'Main content tracking sheet'
+      },
+      {
+        name: 'Configurations',
+        headers: ['ConfigKey', 'ConfigValue', 'Description', 'UpdatedAt'],
+        description: 'System configuration settings'
+      },
+      {
+        name: 'Activity_Audit',
+        headers: ['audit_id', 'entity_type', 'entity_id', 'action', 'user_id', 'timestamp', 'notes'],
+        description: 'Audit trail for all content changes'
+      }
+    ];
+
+    // Create or update sheets
+    specs.forEach(spec => {
+      let sheet = ss.getSheetByName(spec.name);
+      if (!sheet) {
+        sheet = ss.insertSheet(spec.name);
+      }
+      
+      // Set headers
+      const headerRange = sheet.getRange(1, 1, 1, spec.headers.length);
+      headerRange.setValues([spec.headers]);
+      
+      // Format headers
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#f0f0f0');
+      
+      // Auto-resize columns
+      sheet.autoResizeColumns(1, spec.headers.length);
+    });
+
+    // Initialize configuration data
+    initConfigurationData(ss);
+
+    return {
+      success: true,
+      message: 'YouTube Content Manager sheets initialized successfully',
+      spreadsheetId: ss.getId(),
+      sheets: specs.map(spec => spec.name)
+    };
+
+  } catch (error) {
+    console.error('Error initializing sheets:', error);
+    return {
+      success: false,
+      error: {
+        message: error.message,
+        type: 'INITIALIZATION_ERROR'
+      }
+    };
+  }
+}
+
+/**
+ * Initialize configuration data
+ * @private
+ * @param {Spreadsheet} ss - Spreadsheet object
+ */
+function initConfigurationData(ss) {
+  const configSheet = ss.getSheetByName('Configurations');
+  if (!configSheet) return;
+
+  const configData = [
+    ['WorkflowPhases', 'Idea,Script,Recording,Editing,Review,Published', 'Available workflow phases'],
+    ['ContentPillars', 'Educational Tutorials,Product Demos,Customer Success Stories,Support Library,Marketing & Updates', 'Available content pillars'],
+    ['DefaultAssignee', '', 'Default user for new content'],
+    ['NotificationSettings', 'enabled', 'Email notification settings'],
+    ['DueDateReminderDays', '3,1', 'Days before due date to send reminders'],
+    ['OverdueCheckEnabled', 'true', 'Enable overdue content checking'],
+    ['WeeklySummaryEnabled', 'true', 'Enable weekly summary emails'],
+    ['WeeklySummaryDay', 'Monday', 'Day of week to send summary'],
+    ['TeamEmails', '', 'Comma-separated team email addresses'],
+    ['LastUpdated', new Date().toISOString(), 'Last configuration update']
+  ];
+
+  // Clear existing data and add new configuration
+  configSheet.clear();
+  configSheet.getRange(1, 1, 1, 4).setValues([['ConfigKey', 'ConfigValue', 'Description', 'UpdatedAt']]);
+  configSheet.getRange(2, 1, configData.length, 4).setValues(configData.map(row => [...row, new Date().toISOString()]));
+  
+  // Format headers
+  configSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
+  configSheet.autoResizeColumns(1, 4);
+}
+
+/**
+ * Get all content assets
+ * @returns {Array} Array of content assets
+ */
+function getContentAssets() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('ContentAssets');
+    
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return [];
+    }
+
+    const headers = data[0];
+    const assets = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const asset = {
+        id: row[headers.indexOf('ID')],
+        title: row[headers.indexOf('Title')],
+        pillar: row[headers.indexOf('Pillar')],
+        workflowPhase: row[headers.indexOf('WorkflowPhase')],
+        assignedTo: row[headers.indexOf('AssignedTo')],
+        dueDate: row[headers.indexOf('DueDate')],
+        assets: row[headers.indexOf('Assets')],
+        notes: row[headers.indexOf('Notes')],
+        publishedUrl: row[headers.indexOf('PublishedURL')],
+        createdAt: row[headers.indexOf('CreatedAt')],
+        updatedAt: row[headers.indexOf('UpdatedAt')]
+      };
+      assets.push(asset);
+    }
+
+    return assets;
+
+  } catch (error) {
+    console.error('Error getting content assets:', error);
+    return [];
+  }
+}
+
+/**
+ * Create new content asset
+ * @param {object} assetData - Asset data
+ * @returns {object} Creation result
+ */
+function createContentAsset(assetData) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('ContentAssets');
+    
+    if (!sheet) {
+      throw new Error('ContentAssets sheet not found');
+    }
+
+    // Generate unique ID
+    const contentId = 'content_' + Utilities.getUuid();
+    const now = new Date();
+
+    // Prepare row data
+    const rowData = [
+      contentId,
+      assetData.title || '',
+      assetData.pillar || '',
+      assetData.workflowPhase || 'Idea',
+      assetData.assignedTo || '',
+      assetData.dueDate || '',
+      assetData.assets || '',
+      assetData.notes || '',
+      assetData.publishedUrl || '',
+      now,
+      now
+    ];
+
+    // Append row
+    sheet.appendRow(rowData);
+
+    // Log audit event
+    logAuditEvent('ContentAssets', contentId, 'CREATE', Session.getActiveUser().getEmail(), 'Content asset created');
+
+    return {
+      success: true,
+      message: 'Content asset created successfully',
+      data: {
+        id: contentId,
+        ...assetData,
+        createdAt: now,
+        updatedAt: now
+      }
+    };
+
+  } catch (error) {
+    console.error('Error creating content asset:', error);
+    return {
+      success: false,
+      error: {
+        message: error.message,
+        type: 'CREATE_ERROR'
+      }
+    };
+  }
+}
+
+/**
+ * Update content asset
+ * @param {string} contentId - Content ID
+ * @param {object} updateData - Update data
+ * @returns {object} Update result
+ */
+function updateContentAsset(contentId, updateData) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('ContentAssets');
+    
+    if (!sheet) {
+      throw new Error('ContentAssets sheet not found');
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIndex = headers.indexOf('ID');
+    const updatedAtIndex = headers.indexOf('UpdatedAt');
+
+    // Find the row
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idIndex] === contentId) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error('Content asset not found with ID: ' + contentId);
+    }
+
+    // Update fields
+    const fieldsToUpdate = [
+      'Title', 'Pillar', 'WorkflowPhase', 'AssignedTo', 'DueDate',
+      'Assets', 'Notes', 'PublishedURL'
+    ];
+
+    fieldsToUpdate.forEach(field => {
+      if (updateData.hasOwnProperty(field)) {
+        const columnIndex = headers.indexOf(field);
+        if (columnIndex !== -1) {
+          sheet.getRange(rowIndex + 1, columnIndex + 1).setValue(updateData[field]);
+        }
+      }
+    });
+
+    // Update timestamp
+    sheet.getRange(rowIndex + 1, updatedAtIndex + 1).setValue(new Date());
+
+    // Log audit event
+    logAuditEvent('ContentAssets', contentId, 'UPDATE', Session.getActiveUser().getEmail(), 'Content asset updated');
+
+    return {
+      success: true,
+      message: 'Content asset updated successfully',
+      data: {
+        id: contentId,
+        ...updateData,
+        updatedAt: new Date()
+      }
+    };
+
+  } catch (error) {
+    console.error('Error updating content asset:', error);
+    return {
+      success: false,
+      error: {
+        message: error.message,
+        type: 'UPDATE_ERROR'
+      }
+    };
+  }
+}
+
+/**
+ * Get dashboard metrics
+ * @returns {object} Dashboard metrics
+ */
+function getDashboardMetrics() {
+  try {
+    const assets = getContentAssets();
+    
+    const metrics = {
+      totalContent: assets.length,
+      publishedCount: 0,
+      inProgressCount: 0,
+      overdueCount: 0,
+      upcomingDueCount: 0,
+      pillars: {},
+      phases: {},
+      thisWeek: 0,
+      thisMonth: 0
+    };
+
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Initialize counters
+    const pillars = ['Educational Tutorials', 'Product Demos', 'Customer Success Stories', 'Support Library', 'Marketing & Updates'];
+    const phases = ['Idea', 'Script', 'Recording', 'Editing', 'Review', 'Published'];
+    
+    pillars.forEach(pillar => {
+      metrics.pillars[pillar] = 0;
+    });
+    
+    phases.forEach(phase => {
+      metrics.phases[phase] = 0;
+    });
+
+    // Process assets
+    assets.forEach(asset => {
+      // Count by pillar
+      if (asset.pillar && metrics.pillars.hasOwnProperty(asset.pillar)) {
+        metrics.pillars[asset.pillar]++;
+      }
+
+      // Count by phase
+      if (asset.workflowPhase && metrics.phases.hasOwnProperty(asset.workflowPhase)) {
+        metrics.phases[asset.workflowPhase]++;
+      }
+
+      // Count published
+      if (asset.workflowPhase === 'Published') {
+        metrics.publishedCount++;
+      }
+
+      // Count in progress
+      if (asset.workflowPhase && asset.workflowPhase !== 'Idea' && asset.workflowPhase !== 'Published') {
+        metrics.inProgressCount++;
+      }
+
+      // Check due dates
+      if (asset.dueDate) {
+        const dueDate = new Date(asset.dueDate);
+        if (dueDate < now) {
+          metrics.overdueCount++;
+        } else if (dueDate <= oneWeekFromNow) {
+          metrics.upcomingDueCount++;
+        }
+      }
+
+      // Check creation dates
+      if (asset.createdAt) {
+        const createdAt = new Date(asset.createdAt);
+        if (createdAt >= oneWeekAgo) {
+          metrics.thisWeek++;
+        }
+        if (createdAt >= oneMonthAgo) {
+          metrics.thisMonth++;
+        }
+      }
+    });
+
+    // Calculate completion rate
+    metrics.completionRate = metrics.totalContent > 0 ? 
+      Math.round((metrics.publishedCount / metrics.totalContent) * 100) : 0;
+
+    return metrics;
+
+  } catch (error) {
+    console.error('Error getting dashboard metrics:', error);
+    return {
+      totalContent: 0,
+      publishedCount: 0,
+      inProgressCount: 0,
+      overdueCount: 0,
+      upcomingDueCount: 0,
+      pillars: {},
+      phases: {},
+      thisWeek: 0,
+      thisMonth: 0,
+      completionRate: 0
+    };
+  }
+}
+
+/**
+ * Export content assets to CSV
+ * @returns {string} CSV data
+ */
+function exportContentAssetsToCSV() {
+  try {
+    const assets = getContentAssets();
+    
+    if (assets.length === 0) {
+      return 'No data to export';
+    }
+
+    // Create CSV header
+    const headers = ['ID', 'Title', 'Pillar', 'WorkflowPhase', 'AssignedTo', 'DueDate', 'Assets', 'Notes', 'PublishedURL', 'CreatedAt', 'UpdatedAt'];
+    let csv = headers.join(',') + '\n';
+
+    // Add data rows
+    assets.forEach(asset => {
+      const row = [
+        asset.id || '',
+        `"${(asset.title || '').replace(/"/g, '""')}"`,
+        asset.pillar || '',
+        asset.workflowPhase || '',
+        asset.assignedTo || '',
+        asset.dueDate || '',
+        `"${(asset.assets || '').replace(/"/g, '""')}"`,
+        `"${(asset.notes || '').replace(/"/g, '""')}"`,
+        asset.publishedUrl || '',
+        asset.createdAt || '',
+        asset.updatedAt || ''
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    return csv;
+
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    return 'Error exporting data: ' + error.message;
+  }
+}
+
+/**
+ * Clear all caches
+ * @returns {object} Clear result
+ */
+function clearAllCaches() {
+  try {
+    // Clear any caches if implemented
+    return {
+      success: true,
+      message: 'Cache cleared successfully'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: error.message,
+        type: 'CACHE_CLEAR_ERROR'
+      }
+    };
+  }
+}
+
+/**
+ * Log audit event
+ * @param {string} entityType - Type of entity
+ * @param {string} entityId - Entity ID
+ * @param {string} action - Action performed
+ * @param {string} userId - User ID
+ * @param {string} notes - Optional notes
+ */
+function logAuditEvent(entityType, entityId, action, userId, notes) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const auditSheet = ss.getSheetByName('Activity_Audit');
+    
+    if (!auditSheet) {
+      console.warn('Activity_Audit sheet not found, skipping audit log');
+      return;
+    }
+
+    const auditId = 'audit_' + Utilities.getUuid();
+    const timestamp = new Date().toISOString();
+
+    auditSheet.appendRow([
+      auditId,
+      entityType,
+      entityId,
+      action,
+      userId,
+      timestamp,
+      notes || ''
+    ]);
+
+  } catch (error) {
+    console.error('Error logging audit event:', error);
+  }
+}
+
+/**
  * Test function to verify the application is working
  * @returns {object} Test result
  */
