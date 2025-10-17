@@ -16,6 +16,106 @@ function doGet() {
 }
 
 /**
+ * Handle POST requests for API calls (for APIClient.Call optimization)
+ * @param {Object} e - Event object containing request data
+ * @returns {Object} JSON response
+ */
+function doPost(e) {
+  try {
+    let requestData;
+    
+    // Parse request data
+    if (e.postData && e.postData.contents) {
+      requestData = JSON.parse(e.postData.contents);
+    } else {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid request format'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const action = requestData.action;
+    const params = requestData.params || {};
+    
+    // Route to appropriate handler
+    let result;
+    switch(action) {
+      // Dashboard & Stats
+      case 'getDashboardMetrics':
+        result = getDashboardMetrics();
+        break;
+      case 'getAppStatistics':
+        result = getAppStatistics();
+        break;
+      case 'getAppInfo':
+        result = getAppInfo();
+        break;
+      case 'healthCheck':
+        result = healthCheck();
+        break;
+        
+      // Content Assets
+      case 'getContentAssets':
+        result = getContentAssets();
+        break;
+      case 'createContentAsset':
+        result = createContentAsset(params);
+        break;
+      case 'updateContentAsset':
+        result = updateContentAsset(params.contentId, params.updateData);
+        break;
+      case 'exportContentAssetsToCSV':
+        result = exportContentAssetsToCSV();
+        break;
+        
+      // System
+      case 'initYtSheets':
+        result = initYtSheets();
+        break;
+      case 'getSystemConfig':
+        result = getSystemConfig();
+        break;
+      case 'updateSystemConfig':
+        result = updateSystemConfig(params);
+        break;
+      case 'getUserInfo':
+        result = getUserInfo();
+        break;
+      case 'clearAllCaches':
+        result = clearAllCaches();
+        break;
+      case 'invalidateCache':
+        result = invalidateCache(params.cacheType);
+        break;
+      case 'testApplication':
+        result = testApplication();
+        break;
+        
+      // Batch operations
+      case 'batchLoad':
+        result = handleBatchLoad(params.operations);
+        break;
+        
+      default:
+        result = {
+          success: false,
+          error: 'Unknown action: ' + action
+        };
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    console.error('doPost error:', error);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
  * Include function for HTML templates
  * This allows including other HTML files in the main template
  */
@@ -126,11 +226,21 @@ function initConfigurationData(ss) {
 }
 
 /**
- * Get all content assets
+ * Get all content assets with caching for better performance
  * @returns {Array} Array of content assets
  */
 function getContentAssets() {
   try {
+    // Try to get from cache first
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'yt_content_assets';
+    const cached = cache.get(cacheKey);
+    
+    if (cached) {
+      console.log('Content assets loaded from cache');
+      return JSON.parse(cached);
+    }
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('ContentAssets');
     
@@ -162,6 +272,14 @@ function getContentAssets() {
         updatedAt: row[headers.indexOf('UpdatedAt')]
       };
       assets.push(asset);
+    }
+
+    // Cache for 10 minutes
+    try {
+      cache.put(cacheKey, JSON.stringify(assets), 600);
+      console.log('Content assets cached for 10 minutes');
+    } catch (e) {
+      console.warn('Could not cache content assets:', e);
     }
 
     return assets;
@@ -210,6 +328,9 @@ function createContentAsset(assetData) {
 
     // Log audit event
     logAuditEvent('ContentAssets', contentId, 'CREATE', Session.getActiveUser().getEmail(), 'Content asset created');
+
+    // Invalidate content cache
+    invalidateCache('content');
 
     return {
       success: true,
@@ -288,6 +409,9 @@ function updateContentAsset(contentId, updateData) {
     // Log audit event
     logAuditEvent('ContentAssets', contentId, 'UPDATE', Session.getActiveUser().getEmail(), 'Content asset updated');
 
+    // Invalidate content cache
+    invalidateCache('content');
+
     return {
       success: true,
       message: 'Content asset updated successfully',
@@ -311,11 +435,21 @@ function updateContentAsset(contentId, updateData) {
 }
 
 /**
- * Get dashboard metrics
+ * Get dashboard metrics with caching for better performance
  * @returns {object} Dashboard metrics
  */
 function getDashboardMetrics() {
   try {
+    // Try to get from cache first
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'yt_dashboard_metrics';
+    const cached = cache.get(cacheKey);
+    
+    if (cached) {
+      console.log('Dashboard metrics loaded from cache');
+      return JSON.parse(cached);
+    }
+    
     const assets = getContentAssets();
     
     const metrics = {
@@ -395,6 +529,14 @@ function getDashboardMetrics() {
     metrics.completionRate = metrics.totalContent > 0 ? 
       Math.round((metrics.publishedCount / metrics.totalContent) * 100) : 0;
 
+    // Cache for 5 minutes
+    try {
+      cache.put(cacheKey, JSON.stringify(metrics), 300);
+      console.log('Dashboard metrics cached for 5 minutes');
+    } catch (e) {
+      console.warn('Could not cache dashboard metrics:', e);
+    }
+
     return metrics;
 
   } catch (error) {
@@ -462,10 +604,30 @@ function exportContentAssetsToCSV() {
  */
 function clearAllCaches() {
   try {
-    // Clear any caches if implemented
+    const cache = CacheService.getScriptCache();
+    
+    // Clear all known cache keys
+    const cacheKeys = [
+      'yt_content_assets',
+      'yt_content_stats',
+      'yt_dashboard_metrics',
+      'yt_system_config'
+    ];
+    
+    let clearedCount = 0;
+    cacheKeys.forEach(key => {
+      try {
+        cache.remove(key);
+        clearedCount++;
+      } catch (e) {
+        console.warn(`Could not clear cache key ${key}:`, e);
+      }
+    });
+    
     return {
       success: true,
-      message: 'Cache cleared successfully'
+      message: `Cleared ${clearedCount} cache entries successfully`,
+      clearedCount: clearedCount
     };
   } catch (error) {
     return {
@@ -474,6 +636,59 @@ function clearAllCaches() {
         message: error.message,
         type: 'CACHE_CLEAR_ERROR'
       }
+    };
+  }
+}
+
+/**
+ * Invalidate specific cache entries
+ * @param {string} cacheType - Type of cache to invalidate
+ * @returns {object} Invalidation result
+ */
+function invalidateCache(cacheType) {
+  try {
+    const cache = CacheService.getScriptCache();
+    let invalidatedCount = 0;
+    
+    switch(cacheType) {
+      case 'content':
+        const contentKeys = ['yt_content_assets', 'yt_content_stats'];
+        contentKeys.forEach(key => {
+          try {
+            cache.remove(key);
+            invalidatedCount++;
+          } catch (e) {
+            console.warn(`Could not invalidate ${key}:`, e);
+          }
+        });
+        break;
+      case 'dashboard':
+        try {
+          cache.remove('yt_dashboard_metrics');
+          invalidatedCount++;
+        } catch (e) {
+          console.warn('Could not invalidate dashboard cache:', e);
+        }
+        break;
+      case 'all':
+        return clearAllCaches();
+      default:
+        return {
+          success: false,
+          error: 'Unknown cache type: ' + cacheType
+        };
+    }
+    
+    return {
+      success: true,
+      message: `Invalidated ${invalidatedCount} cache entries`,
+      invalidatedCount: invalidatedCount
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
     };
   }
 }
@@ -861,6 +1076,148 @@ function cleanupAuditLogs(daysToKeep = 90) {
     return {
       success: false,
       error: error.message
+    };
+  }
+}
+
+/**
+ * Handle batch load operations for maximum performance
+ * @param {Array} operations - Array of operations to execute in parallel
+ * @returns {Object} Batch results
+ */
+function handleBatchLoad(operations) {
+  try {
+    const results = {};
+    const errors = {};
+    
+    // Execute all operations in parallel
+    operations.forEach(operation => {
+      try {
+        const { id, action, params } = operation;
+        
+        let result;
+        switch(action) {
+          case 'getDashboardMetrics':
+            result = getDashboardMetrics();
+            break;
+          case 'getContentAssets':
+            result = getContentAssets();
+            break;
+          case 'getSystemConfig':
+            result = getSystemConfig();
+            break;
+          case 'getUserInfo':
+            result = getUserInfo();
+            break;
+          case 'getAppStatistics':
+            result = getAppStatistics();
+            break;
+          default:
+            result = { success: false, error: 'Unknown batch action: ' + action };
+        }
+        
+        results[id] = result;
+      } catch (error) {
+        errors[operation.id] = {
+          success: false,
+          error: error.message
+        };
+      }
+    });
+    
+    return {
+      success: true,
+      results: results,
+      errors: errors,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+/**
+ * Get content statistics with caching
+ * @returns {Object} Content statistics
+ */
+function getContentStatistics() {
+  try {
+    // Try to get from cache first
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'yt_content_stats';
+    const cached = cache.get(cacheKey);
+    
+    if (cached) {
+      return JSON.parse(cached);
+    }
+    
+    const assets = getContentAssets();
+    
+    const stats = {
+      total: assets.length,
+      byPillar: {},
+      byPhase: {},
+      published: 0,
+      inProgress: 0
+    };
+
+    // Initialize counters
+    const pillars = ['Educational Tutorials', 'Product Demos', 'Customer Success Stories', 'Support Library', 'Marketing & Updates'];
+    const phases = ['Idea', 'Script', 'Recording', 'Editing', 'Review', 'Published'];
+    
+    pillars.forEach(pillar => {
+      stats.byPillar[pillar] = 0;
+    });
+    
+    phases.forEach(phase => {
+      stats.byPhase[phase] = 0;
+    });
+
+    // Process assets
+    assets.forEach(asset => {
+      // Count by pillar
+      if (asset.pillar && stats.byPillar.hasOwnProperty(asset.pillar)) {
+        stats.byPillar[asset.pillar]++;
+      }
+
+      // Count by phase
+      if (asset.workflowPhase && stats.byPhase.hasOwnProperty(asset.workflowPhase)) {
+        stats.byPhase[asset.workflowPhase]++;
+      }
+
+      // Count published
+      if (asset.workflowPhase === 'Published') {
+        stats.published++;
+      }
+
+      // Count in progress
+      if (asset.workflowPhase && asset.workflowPhase !== 'Idea' && asset.workflowPhase !== 'Published') {
+        stats.inProgress++;
+      }
+    });
+
+    // Cache for 5 minutes
+    try {
+      cache.put(cacheKey, JSON.stringify(stats), 300);
+    } catch (e) {
+      console.warn('Could not cache content stats:', e);
+    }
+
+    return stats;
+
+  } catch (error) {
+    console.error('Error getting content statistics:', error);
+    return {
+      total: 0,
+      byPillar: {},
+      byPhase: {},
+      published: 0,
+      inProgress: 0
     };
   }
 }

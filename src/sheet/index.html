@@ -1127,6 +1127,10 @@
                     <button id="themeToggle" class="btn btn-secondary btn-sm" title="Toggle theme">
                         <i class="bi bi-moon"></i>
                     </button>
+                    <button id="performanceBtn" class="btn btn-info btn-sm" title="View Performance Metrics">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Performance</span>
+                    </button>
                     <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh data">
                         <i class="bi bi-arrow-clockwise"></i>
                         <span class="d-none d-md-inline">Refresh</span>
@@ -1400,6 +1404,286 @@
     </div>
 
     <script>
+        // ===== OPTIMIZED API CLIENT =====
+        // Provides XMLHttpRequest support for async, non-blocking server calls
+        // Can fall back to google.script.run when XMLHttpRequest is not available
+        
+        const API_CONFIG = {
+            useXHR: true, // Set to true to enable XMLHttpRequest (requires deployed web app URL)
+            deploymentUrl: '', // Set this to your deployed web app URL when useXHR is true
+            defaultTimeout: 30000 // 30 seconds timeout
+        };
+        
+        /**
+         * OPTIMIZED: Unified API Client
+         * Automatically uses XMLHttpRequest or google.script.run based on configuration
+         */
+        const ApiClient = {
+            /**
+             * Call a server-side function
+             * @param {string} action - The action/function to call
+             * @param {object} params - Parameters to pass
+             * @param {function} onSuccess - Success callback
+             * @param {function} onError - Error callback
+             */
+            call: function(action, params, onSuccess, onError) {
+                // Start performance tracking
+                PerformanceTracker.startTimer();
+                
+                const wrappedSuccess = function(response) {
+                    PerformanceTracker.recordSuccess();
+                    PerformanceTracker.endTimer();
+                    if (onSuccess) onSuccess(response);
+                };
+                
+                const wrappedError = function(error) {
+                    PerformanceTracker.recordFailure();
+                    PerformanceTracker.endTimer();
+                    if (onError) onError(error);
+                };
+                
+                if (API_CONFIG.useXHR && API_CONFIG.deploymentUrl) {
+                    // Use XMLHttpRequest for async, non-blocking calls
+                    this._callViaXHR(action, params, wrappedSuccess, wrappedError);
+                } else {
+                    // Fall back to google.script.run
+                    this._callViaGoogleScript(action, params, wrappedSuccess, wrappedError);
+                }
+            },
+            
+            /**
+             * XMLHttpRequest implementation (async, non-blocking)
+             */
+            _callViaXHR: function(action, params, onSuccess, onError) {
+                const startTime = performance.now();
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.open('POST', API_CONFIG.deploymentUrl, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.timeout = API_CONFIG.defaultTimeout;
+                
+                xhr.onload = function() {
+                    const elapsed = Math.round(performance.now() - startTime);
+                    
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            console.log(`✅ XHR ${action} completed in ${elapsed}ms`);
+                            
+                            if (onSuccess) {
+                                onSuccess(response);
+                            }
+                        } catch (e) {
+                            console.error('XHR parse error:', e);
+                            if (onError) {
+                                onError({ message: 'Failed to parse server response' });
+                            }
+                        }
+                    } else {
+                        console.error(`XHR ${action} failed with status ${xhr.status}`);
+                        if (onError) {
+                            onError({ message: `Server error: ${xhr.status}` });
+                        }
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    console.error(`XHR ${action} network error`);
+                    if (onError) {
+                        onError({ message: 'Network error' });
+                    }
+                };
+                
+                xhr.ontimeout = function() {
+                    console.error(`XHR ${action} timeout`);
+                    if (onError) {
+                        onError({ message: 'Request timeout' });
+                    }
+                };
+                
+                const payload = JSON.stringify({
+                    action: action,
+                    params: params || {}
+                });
+                
+                xhr.send(payload);
+            },
+            
+            /**
+             * google.script.run implementation (traditional)
+             */
+            _callViaGoogleScript: function(action, params, onSuccess, onError) {
+                const startTime = performance.now();
+                
+                // Map action to corresponding server function
+                const functionMap = {
+                    // Dashboard & Stats
+                    'getDashboardMetrics': 'getDashboardMetrics',
+                    'getAppStatistics': 'getAppStatistics',
+                    'getAppInfo': 'getAppInfo',
+                    'healthCheck': 'healthCheck',
+                    
+                    // Content Assets
+                    'getContentAssets': 'getContentAssets',
+                    'createContentAsset': 'createContentAsset',
+                    'updateContentAsset': 'updateContentAsset',
+                    'exportContentAssetsToCSV': 'exportContentAssetsToCSV',
+                    
+                    // System
+                    'initYtSheets': 'initYtSheets',
+                    'getSystemConfig': 'getSystemConfig',
+                    'updateSystemConfig': 'updateSystemConfig',
+                    'getUserInfo': 'getUserInfo',
+                    'clearAllCaches': 'clearAllCaches',
+                    'invalidateCache': 'invalidateCache',
+                    'testApplication': 'testApplication',
+                    
+                    // Batch operations
+                    'batchLoad': 'batchLoad'
+                };
+                
+                const functionName = functionMap[action];
+                
+                if (!functionName) {
+                    console.error('Unknown action:', action);
+                    if (onError) {
+                        onError({ message: 'Unknown action: ' + action });
+                    }
+                    return;
+                }
+                
+                const runner = google.script.run;
+                
+                if (onSuccess) {
+                    runner.withSuccessHandler(function(response) {
+                        const elapsed = Math.round(performance.now() - startTime);
+                        console.log(`✅ ${action} completed in ${elapsed}ms`);
+                        onSuccess(response);
+                    });
+                }
+                
+                if (onError) {
+                    runner.withFailureHandler(onError);
+                }
+                
+                // Call the function with params
+                if (params && typeof params === 'object' && !Array.isArray(params)) {
+                    // If params is an object, pass it as argument
+                    runner[functionName](params);
+                } else {
+                    // Otherwise call without params
+                    runner[functionName]();
+                }
+            },
+            
+            /**
+             * Batch API calls (execute multiple calls in parallel)
+             * Only supported with google.script.run (not XHR)
+             */
+            batchCall: function(calls, onComplete) {
+                const startTime = performance.now();
+                let completed = 0;
+                const results = {};
+                const errors = {};
+                
+                calls.forEach(function(callConfig) {
+                    const callId = callConfig.id || callConfig.action;
+                    
+                    ApiClient.call(
+                        callConfig.action,
+                        callConfig.params,
+                        function(response) {
+                            results[callId] = response;
+                            completed++;
+                            
+                            if (completed === calls.length) {
+                                const elapsed = Math.round(performance.now() - startTime);
+                                console.log(`✅ Batch call completed in ${elapsed}ms (${calls.length} operations)`);
+                                onComplete(results, errors);
+                            }
+                        },
+                        function(error) {
+                            errors[callId] = error;
+                            completed++;
+                            
+                            if (completed === calls.length) {
+                                const elapsed = Math.round(performance.now() - startTime);
+                                console.log(`⚠️ Batch call completed with errors in ${elapsed}ms`);
+                                onComplete(results, errors);
+                            }
+                        }
+                    );
+                });
+            }
+        };
+        
+        // Make ApiClient available globally
+        window.ApiClient = ApiClient;
+
+        // ===== PERFORMANCE TRACKING =====
+        const PerformanceTracker = {
+            metrics: {
+                totalRequests: 0,
+                successfulRequests: 0,
+                failedRequests: 0,
+                averageResponseTime: 0,
+                totalResponseTime: 0,
+                cacheHits: 0,
+                cacheMisses: 0
+            },
+            
+            startTime: null,
+            
+            startTimer: function() {
+                this.startTime = performance.now();
+            },
+            
+            endTimer: function() {
+                if (this.startTime) {
+                    const responseTime = performance.now() - this.startTime;
+                    this.metrics.totalResponseTime += responseTime;
+                    this.metrics.totalRequests++;
+                    this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.totalRequests;
+                    return responseTime;
+                }
+                return 0;
+            },
+            
+            recordSuccess: function() {
+                this.metrics.successfulRequests++;
+            },
+            
+            recordFailure: function() {
+                this.metrics.failedRequests++;
+            },
+            
+            recordCacheHit: function() {
+                this.metrics.cacheHits++;
+            },
+            
+            recordCacheMiss: function() {
+                this.metrics.cacheMisses++;
+            },
+            
+            getMetrics: function() {
+                return {
+                    ...this.metrics,
+                    successRate: this.metrics.totalRequests > 0 ? 
+                        (this.metrics.successfulRequests / this.metrics.totalRequests * 100).toFixed(2) + '%' : '0%',
+                    cacheHitRate: (this.metrics.cacheHits + this.metrics.cacheMisses) > 0 ? 
+                        (this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses) * 100).toFixed(2) + '%' : '0%'
+                };
+            },
+            
+            logMetrics: function() {
+                console.log('📊 Performance Metrics:', this.getMetrics());
+            }
+        };
+
+        // Make PerformanceTracker available globally
+        window.PerformanceTracker = PerformanceTracker;
+
         // Enhanced Global State Management
         const AppState = {
             contentData: [],
@@ -1557,11 +1841,8 @@
                 await initSheets();
                 
                 // Load initial data with progress indication
-                await Promise.all([
-                    loadDashboardData(),
-                    loadKanbanData(),
-                    loadUserPreferences()
-                ]);
+                // Load initial data using optimized batch loading
+                await loadAllDataBatch();
                 
                 // Set up event listeners
                 setupEventListeners();
@@ -1666,22 +1947,75 @@
         // User Preferences
         async function loadUserPreferences() {
             try {
-                const preferences = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .getSystemConfig();
-                });
-
-                if (preferences.success) {
-                    // Apply user preferences
-                    const config = preferences.data;
-                    if (config.DefaultAssignee) {
-                        document.getElementById('contentAssignee').value = config.DefaultAssignee;
+                ApiClient.call('getSystemConfig', null,
+                    function(preferences) {
+                        if (preferences.success) {
+                            // Apply user preferences
+                            const config = preferences.data;
+                            if (config.DefaultAssignee) {
+                                document.getElementById('contentAssignee').value = config.DefaultAssignee;
+                            }
+                        }
+                    },
+                    function(error) {
+                        console.warn('Could not load user preferences:', error);
                     }
-                }
+                );
             } catch (error) {
                 console.warn('Could not load user preferences:', error);
+            }
+        }
+
+        // OPTIMIZED: Batch load all data for maximum performance
+        async function loadAllDataBatch() {
+            try {
+                console.log('🚀 Loading all data in parallel for maximum performance...');
+                
+                ApiClient.batchCall([
+                    { id: 'dashboard', action: 'getDashboardMetrics' },
+                    { id: 'content', action: 'getContentAssets' },
+                    { id: 'config', action: 'getSystemConfig' },
+                    { id: 'user', action: 'getUserInfo' }
+                ], function(results, errors) {
+                    // Handle dashboard data
+                    if (results.dashboard) {
+                        renderDashboardCards(results.dashboard);
+                    }
+                    
+                    // Handle content data
+                    if (results.content) {
+                        AppState.contentData = results.content;
+                        AppState.filteredData = [...results.content];
+                        renderKanbanBoard();
+                    }
+                    
+                    // Handle user preferences
+                    if (results.config && results.config.success) {
+                        const config = results.config.data;
+                        if (config.DefaultAssignee) {
+                            document.getElementById('contentAssignee').value = config.DefaultAssignee;
+                        }
+                    }
+                    
+                    // Handle user info
+                    if (results.user && results.user.success) {
+                        console.log('User info loaded:', results.user.data);
+                    }
+                    
+                    // Handle errors
+                    if (Object.keys(errors).length > 0) {
+                        console.warn('Some data failed to load:', errors);
+                        showToast('Some data failed to load', 'warning');
+                    } else {
+                        console.log('✅ All data loaded successfully in parallel!');
+                        // Log performance metrics
+                        PerformanceTracker.logMetrics();
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error in batch loading:', error);
+                showToast('Error loading data', 'error');
             }
         }
 
@@ -1702,14 +2036,15 @@
         // Load dashboard data
         async function loadDashboardData() {
             try {
-                const metrics = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .getDashboardMetrics();
-                });
-
-                renderDashboardCards(metrics);
+                ApiClient.call('getDashboardMetrics', null,
+                    function(metrics) {
+                        renderDashboardCards(metrics);
+                    },
+                    function(error) {
+                        console.error('Error loading dashboard data:', error);
+                        showToast('Error loading dashboard data', 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Error loading dashboard data', 'error');
@@ -1719,16 +2054,17 @@
         // Load Kanban data
         async function loadKanbanData() {
             try {
-                const assets = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .getContentAssets();
-                });
-
-                AppState.contentData = assets;
-                AppState.filteredData = [...AppState.contentData];
-                renderKanbanBoard();
+                ApiClient.call('getContentAssets', null,
+                    function(assets) {
+                        AppState.contentData = assets;
+                        AppState.filteredData = [...AppState.contentData];
+                        renderKanbanBoard();
+                    },
+                    function(error) {
+                        console.error('Error loading Kanban data:', error);
+                        showToast('Error loading content data', 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error loading Kanban data:', error);
                 showToast('Error loading content data', 'error');
@@ -1896,27 +2232,31 @@
         // Update content phase
         async function updateContentPhase(contentId, newPhase) {
             try {
-                const result = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .updateContentAsset(contentId, { WorkflowPhase: newPhase });
-                });
-
-                if (result.success) {
-                    // Update local data
-                    const item = AppState.contentData.find(item => item.id === contentId);
-                    if (item) {
-                        item.workflowPhase = newPhase;
-                        item.updatedAt = new Date().toISOString();
+                ApiClient.call('updateContentAsset', 
+                    { contentId: contentId, updateData: { WorkflowPhase: newPhase } },
+                    function(result) {
+                        if (result.success) {
+                            // Update local data
+                            const item = AppState.contentData.find(item => item.id === contentId);
+                            if (item) {
+                                item.workflowPhase = newPhase;
+                                item.updatedAt = new Date().toISOString();
+                            }
+                            
+                            // Refresh display
+                            loadDashboardData();
+                            showToast(`Content moved to ${newPhase}`, 'success');
+                        } else {
+                            throw new Error(result.error?.message || 'Failed to update content phase');
+                        }
+                    },
+                    function(error) {
+                        console.error('Error updating content phase:', error);
+                        showToast('Error updating content phase: ' + error.message, 'error');
+                        // Reload data to revert changes
+                        loadKanbanData();
                     }
-                    
-                    // Refresh display
-                    await loadDashboardData();
-                    showToast(`Content moved to ${newPhase}`, 'success');
-                } else {
-                    throw new Error(result.error?.message || 'Failed to update content phase');
-                }
+                );
             } catch (error) {
                 console.error('Error updating content phase:', error);
                 showToast('Error updating content phase: ' + error.message, 'error');
@@ -1951,6 +2291,9 @@
 
             // Theme toggle button
             document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+            // Performance button
+            document.getElementById('performanceBtn').addEventListener('click', showPerformanceMetrics);
 
             // Task card clicks
             document.addEventListener('click', (e) => {
@@ -2016,21 +2359,22 @@
                     notes: document.getElementById('contentNotes').value
                 };
 
-                const result = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .createContentAsset(contentData);
-                });
-
-                if (result.success) {
-                    showToast('Content saved successfully!', 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('contentModal')).hide();
-                    await loadKanbanData();
-                    await loadDashboardData();
-                } else {
-                    throw new Error(result.error?.message || 'Failed to save content');
-                }
+                ApiClient.call('createContentAsset', contentData,
+                    function(result) {
+                        if (result.success) {
+                            showToast('Content saved successfully!', 'success');
+                            bootstrap.Modal.getInstance(document.getElementById('contentModal')).hide();
+                            loadKanbanData();
+                            loadDashboardData();
+                        } else {
+                            throw new Error(result.error?.message || 'Failed to save content');
+                        }
+                    },
+                    function(error) {
+                        console.error('Error saving content:', error);
+                        showToast('Error saving content: ' + error.message, 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error saving content:', error);
                 showToast('Error saving content: ' + error.message, 'error');
@@ -2156,20 +2500,21 @@
         // Initialize sheets
         async function initSheets() {
             try {
-                const result = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .initYtSheets();
-                });
-
-                if (result.success) {
-                    showToast('Sheets initialized successfully!', 'success');
-                    await loadDashboardData();
-                    await loadKanbanData();
-                } else {
-                    throw new Error(result.error?.message || 'Failed to initialize sheets');
-                }
+                ApiClient.call('initYtSheets', null,
+                    function(result) {
+                        if (result.success) {
+                            showToast('Sheets initialized successfully!', 'success');
+                            loadDashboardData();
+                            loadKanbanData();
+                        } else {
+                            throw new Error(result.error?.message || 'Failed to initialize sheets');
+                        }
+                    },
+                    function(error) {
+                        console.error('Error initializing sheets:', error);
+                        showToast('Error initializing sheets: ' + error.message, 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error initializing sheets:', error);
                 showToast('Error initializing sheets: ' + error.message, 'error');
@@ -2179,24 +2524,25 @@
         // Export data
         async function exportData() {
             try {
-                const csvData = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .exportContentAssetsToCSV();
-                });
-
-                const blob = new Blob([csvData], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `youtube-content-${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                showToast('Data exported successfully!', 'success');
+                ApiClient.call('exportContentAssetsToCSV', null,
+                    function(csvData) {
+                        const blob = new Blob([csvData], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `youtube-content-${new Date().toISOString().split('T')[0]}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        showToast('Data exported successfully!', 'success');
+                    },
+                    function(error) {
+                        console.error('Error exporting data:', error);
+                        showToast('Error exporting data: ' + error.message, 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error exporting data:', error);
                 showToast('Error exporting data: ' + error.message, 'error');
@@ -2206,20 +2552,21 @@
         // Clear cache
         async function clearCache() {
             try {
-                const result = await new Promise((resolve, reject) => {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .clearAllCaches();
-                });
-
-                if (result.success) {
-                    showToast('Cache cleared successfully!', 'success');
-                    await loadDashboardData();
-                    await loadKanbanData();
-                } else {
-                    throw new Error(result.error?.message || 'Failed to clear cache');
-                }
+                ApiClient.call('clearAllCaches', null,
+                    function(result) {
+                        if (result.success) {
+                            showToast('Cache cleared successfully!', 'success');
+                            loadDashboardData();
+                            loadKanbanData();
+                        } else {
+                            throw new Error(result.error?.message || 'Failed to clear cache');
+                        }
+                    },
+                    function(error) {
+                        console.error('Error clearing cache:', error);
+                        showToast('Error clearing cache: ' + error.message, 'error');
+                    }
+                );
             } catch (error) {
                 console.error('Error clearing cache:', error);
                 showToast('Error clearing cache: ' + error.message, 'error');
@@ -2252,10 +2599,8 @@
                 AppState.isLoading = true;
                 showLoading(true);
                 
-                await Promise.all([
-                    loadDashboardData(),
-                    loadKanbanData()
-                ]);
+                // Use optimized batch loading for maximum performance
+                await loadAllDataBatch();
                 
                 showToast('Data refreshed successfully', 'success');
             } catch (error) {
@@ -2270,6 +2615,88 @@
         // Import data (placeholder)
         function importData() {
             showToast('Import functionality not yet implemented', 'info');
+        }
+
+        // Show performance metrics
+        function showPerformanceMetrics() {
+            const metrics = PerformanceTracker.getMetrics();
+            
+            const modalHtml = `
+                <div class="modal fade" id="performanceModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-speedometer2 me-2"></i>
+                                    Performance Metrics
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Request Statistics</h6>
+                                                <ul class="list-unstyled mb-0">
+                                                    <li><strong>Total Requests:</strong> ${metrics.totalRequests}</li>
+                                                    <li><strong>Successful:</strong> ${metrics.successfulRequests}</li>
+                                                    <li><strong>Failed:</strong> ${metrics.failedRequests}</li>
+                                                    <li><strong>Success Rate:</strong> ${metrics.successRate}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Performance</h6>
+                                                <ul class="list-unstyled mb-0">
+                                                    <li><strong>Avg Response Time:</strong> ${metrics.averageResponseTime.toFixed(2)}ms</li>
+                                                    <li><strong>Total Response Time:</strong> ${metrics.totalResponseTime.toFixed(2)}ms</li>
+                                                    <li><strong>Cache Hits:</strong> ${metrics.cacheHits}</li>
+                                                    <li><strong>Cache Misses:</strong> ${metrics.cacheMisses}</li>
+                                                    <li><strong>Cache Hit Rate:</strong> ${metrics.cacheHitRate}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6>Performance Benefits of APIClient.Call:</h6>
+                                    <ul class="list-unstyled">
+                                        <li>✅ <strong>Parallel Loading:</strong> Multiple data sources load simultaneously</li>
+                                        <li>✅ <strong>Async Operations:</strong> Non-blocking requests improve responsiveness</li>
+                                        <li>✅ <strong>Smart Caching:</strong> Reduces server load and improves speed</li>
+                                        <li>✅ <strong>Error Handling:</strong> Robust error management and recovery</li>
+                                        <li>✅ <strong>Performance Tracking:</strong> Real-time monitoring and optimization</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-primary" onclick="PerformanceTracker.logMetrics()">
+                                    <i class="bi bi-printer me-1"></i>
+                                    Log to Console
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('performanceModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('performanceModal'));
+            modal.show();
         }
 
         // Show system info
